@@ -49,6 +49,12 @@
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
 
+typedef enum i2c_transfer_mode {
+	i2c_general_call =	0x01,
+	i2c_repeated_start =	0x02,
+	i2c_10_bit_transfer =	0x04
+} i2c_transfer_mode;
+
 typedef struct i2c_init_param {
 	uint32_t	max_speed_hz;
 	uint8_t		slave_address;
@@ -76,12 +82,12 @@ int32_t i2c_remove(struct i2c_desc *desc);
 int32_t i2c_write(struct i2c_desc *desc,
 		  uint8_t *data,
 		  uint8_t bytes_number,
-		  uint8_t stop_bit);
+		  uint8_t option);
 
 /* Read data from a slave device. */
 int32_t i2c_read(struct i2c_desc *desc,
 		 uint8_t *data,
 		 uint8_t bytes_number,
-		 uint8_t stop_bit);
+		 uint8_t option);
 
 #endif // I2C_H_
