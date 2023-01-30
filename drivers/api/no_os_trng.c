@@ -1,10 +1,9 @@
 /***************************************************************************//**
- *   @file   no_os_trng.h
- *   @brief  Header file of true random number generator
- *   @author Mihail Chindris (mihail.chindris@analog.com)
+ *   @file   no_os_trng.c
+ *   @brief  Implementation of the TRNG Interface
+ *   @author Antoniu Miclaus (antoniu.miclaus@analog.com)
 ********************************************************************************
- *   @copyright
- * Copyright 2020(c) Analog Devices, Inc.
+ * Copyright 2023(c) Analog Devices, Inc.
  *
  * All rights reserved.
  *
@@ -38,78 +37,75 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#ifndef _NO_OS_TRNG_H_
-#define _NO_OS_TRNG_H_
-
 /******************************************************************************/
 /***************************** Include Files **********************************/
 /******************************************************************************/
-
-#include <stdint.h>
+#include <inttypes.h>
+#include "no_os_trng.h"
+#include <stdlib.h>
+#include "no_os_error.h"
 
 /******************************************************************************/
-/*************************** Types Declarations *******************************/
+/************************ Functions Definitions *******************************/
 /******************************************************************************/
 
 /**
- * @struct no_os_trng_platform_ops
- * @brief Structure holding TRNG function pointers that point to the platform
- * specific function
+ * @brief Initialize the TRNG.
+ * @param desc - The TRNG descriptor.
+ * @param param - The structure that contains the TRNG parameters.
+ * @return 0 in case of success, -1 otherwise.
  */
-struct no_os_trng_platform_ops;
-
-/**
- * @struct no_os_trng_desc
- * @brief TRNG Descriptor
- */
-struct no_os_trng_desc {
-	/** Platform ops */
-	const struct no_os_trng_platform_ops *platform_ops;
-	/** Platform specific parameters */
-	void *extra;
-};
-
-/**
- * @struct no_os_trng_init_param
- * @brief Init parameter for TRNG
- */
-struct no_os_trng_init_param {
-	/** Device id */
-	uint32_t	dev_id;
-	/** Platform specific parameter */
-	void		*extra;
-	/** Platform ops */
-	const struct no_os_trng_platform_ops *platform_ops;
-};
-
-/**
- * @struct no_os_trng_platform_ops
- * @brief Structure holding TRNG function pointers that point to the platform
- * specific function
- */
-struct no_os_trng_platform_ops {
-	/** TRNG initialization function pointer */
-	int (*init)(struct no_os_trng_desc **,
-		    const struct no_os_trng_init_param *);
-	/** Fill buffer with random numbers */
-	int (*fill_buffer)(struct no_os_trng_desc *, uint8_t *, uint32_t);
-	/** TRNG remove function pointer */
-	int (*remove)(struct no_os_trng_desc *);
-};
-
-/******************************************************************************/
-/************************ Functions Declarations ******************************/
-/******************************************************************************/
-
-/* Initialize descriptor */
 int no_os_trng_init(struct no_os_trng_desc **desc,
-		    const struct no_os_trng_init_param *param);
+		    const struct no_os_trng_init_param *param)
+{
+	int ret;
 
-/* Free resources allocated in descriptor */
-int no_os_trng_remove(struct no_os_trng_desc *desc);
+	if (!param || !param->platform_ops)
+		return -EINVAL;
 
-/* Fill buffer with random numbers */
+	if (!param->platform_ops->init)
+		return -ENOSYS;
+
+	ret = param->platform_ops->init(desc, param);
+	if (ret)
+		return ret;
+
+	(*desc)->platform_ops = param->platform_ops;
+
+	return 0;
+}
+
+/**
+ * @brief Free the resources allocated by no_os_trng_init().
+ * @param desc - The TRNG descriptor.
+ * @return 0 in case of success, -1 otherwise.
+ */
+int no_os_trng_remove(struct no_os_trng_desc *desc)
+{
+	if (!desc || !desc->platform_ops)
+		return -EINVAL;
+
+	if (!desc->platform_ops->remove)
+		return -ENOSYS;
+
+	return desc->platform_ops->remove(desc);
+}
+
+/**
+ * @brief Fill buffer with rng data.
+ * @param desc - The TRNG descriptor.
+ * @param buff - Buffer to be filled
+ * @param len - Size of the buffer
+ * @return 0 in case of success, -1 otherwise.
+ */
 int no_os_trng_fill_buffer(struct no_os_trng_desc *desc, uint8_t *buff,
-			   uint32_t len);
+			   uint32_t len)
+{
+	if (!desc || !desc->platform_ops)
+		return -EINVAL;
 
-#endif // _NO_OS_TRNG_H_
+	if (!desc->platform_ops->fill_buffer)
+		return -ENOSYS;
+
+	return desc->platform_ops->fill_buffer(desc, buff, len);
+}
